@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="description" content="AutoNotes – Write freely. Categories appear automatically." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>" />
+  <title>AutoNotes – Smart Note Categorizer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-elevated: #1e293b;
+      --bg-hover: #334155;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-dim: #0ea5e9;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.35);
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-elevated);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: transform 0.25s ease;
+    }
+
+    .sidebar-header {
+      padding: 20px 18px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .logo span { color: var(--accent); }
+
+    .new-note-btn {
+      margin-top: 14px;
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s;
+    }
+    .new-note-btn:hover { background: #7dd3fc; }
+
+    .search-box {
+      margin: 12px 14px 8px;
+      position: relative;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 9px 12px 9px 36px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .search-box input:focus { border-color: var(--accent); }
+    .search-box::before {
+      content: '🔍';
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.85rem;
+      opacity: 0.7;
+    }
+
+    .categories {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 10px 20px;
+    }
+
+    .cat-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      transition: all 0.12s;
+      margin-bottom: 2px;
+    }
+    .cat-item:hover { background: var(--bg-hover); color: var(--text); }
+    .cat-item.active { background: rgba(56,189,248,0.15); color: var(--accent); font-weight: 500; }
+    .cat-item .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .cat-item .count {
+      margin-left: auto;
+      background: var(--bg);
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .add-cat {
+      margin: 8px 14px 16px;
+      padding: 8px;
+      background: transparent;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+      width: calc(100% - 28px);
+      transition: all 0.15s;
+    }
+    .add-cat:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Main */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      position: relative;
+    }
+
+    .topbar {
+      height: 56px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      background: var(--bg);
+    }
+
+    .menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 1.4rem;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .topbar-title {
+      font-weight: 600;
+      font-size: 1.05rem;
+      flex: 1;
+    }
+
+    .view-toggle {
+      display: flex;
+      background: var(--bg-elevated);
+      border-radius: 8px;
+      padding: 3px;
+    }
+    .view-toggle button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .view-toggle button.active {
+      background: var(--bg-hover);
+      color: var(--text);
+    }
+
+    /* Notes list */
+    .notes-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px 40px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      align-content: start;
+    }
+
+    .note-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 140px;
+    }
+    .note-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+    .note-card .card-title {
+      font-weight: 600;
+      font-size: 1rem;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .note-card .card-preview {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex: 1;
+    }
+    .note-card .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    /* Editor */
+    .editor-view {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .editor-view.active { display: flex; }
+
+    .editor-header {
+      padding: 16px 24px 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .category-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .category-pill:hover { filter: brightness(1.15); }
+    .category-pill .confidence {
+      font-size: 0.7rem;
+      opacity: 0.8;
+      font-weight: 500;
+    }
+    .category-pill.auto::after {
+      content: '✨ Auto';
+      font-size: 0.65rem;
+      margin-left: 4px;
+      opacity: 0.7;
+    }
+
+    .title-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 1.6rem;
+      font-weight: 700;
+      padding: 8px 24px 4px;
+      outline: none;
+      letter-spacing: -0.02em;
+    }
+    .title-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+
+    .content-area {
+      flex: 1;
+      padding: 8px 24px 24px;
+      overflow-y: auto;
+    }
+    .content-input {
+      width: 100%;
+      min-height: 280px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 1.05rem;
+      line-height: 1.65;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+    }
+    .content-input::placeholder { color: var(--text-muted); opacity: 0.55; }
+
+    .editor-footer {
+      padding: 10px 24px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .editor-footer .actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+    .btn {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--bg-hover); color: var(--text); }
+    .btn-danger { background: rgba(248,113,113,0.15); color: var(--danger); }
+    .btn-danger:hover { background: rgba(248,113,113,0.25); }
+    .btn-primary { background: var(--accent); color: #0f172a; }
+    .btn-primary:hover { background: #7dd3fc; }
+
+    /* Empty state */
+    .empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+    .empty h3 { font-size: 1.3rem; margin-bottom: 8px; color: var(--text); }
+    .empty p { font-size: 0.95rem; max-width: 360px; margin: 0 auto 20px; line-height: 1.5; }
+
+    /* Modal for category override */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 360px;
+      box-shadow: var(--shadow);
+    }
+    .modal h3 { margin-bottom: 16px; font-size: 1.1rem; }
+    .modal-cats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .modal-cats button {
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .modal-cats button:hover, .modal-cats button.selected {
+      border-color: var(--accent);
+      background: rgba(56,189,248,0.12);
+      color: var(--accent);
+    }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: 0; top: 0; bottom: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .menu-btn { display: block; }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 40;
+        display: none;
+      }
+      .overlay.show { display: block; }
+      .notes-list { padding: 12px; gap: 10px; }
+      .editor-header, .title-input, .content-area, .editor-footer { padding-left: 16px; padding-right: 16px; }
+    }
+
+    /* Live indicator */
+    .live-dot {
+      width: 7px; height: 7px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hint {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      padding: 0 24px 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">📝 Auto<span>Notes</span></div>
+      <button class="new-note-btn" id="newNoteBtn">
+        <span>+</span> New Note
+      </button>
+    </div>
+
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search notes..." />
+    </div>
+
+    <div class="categories" id="categoriesList"></div>
+
+    <button class="add-cat" id="addCatBtn">+ Add category</button>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <button class="menu-btn" id="menuBtn">☰</button>
+      <div class="topbar-title" id="topbarTitle">All Notes</div>
+      <div class="view-toggle">
+        <button class="active" data-view="list">Notes</button>
+        <button data-view="editor" id="editorToggle" style="display:none">Editor</button>
+      </div>
+    </div>
+
+    <!-- Notes Grid -->
+    <div class="notes-list" id="notesList"></div>
+
+    <!-- Editor -->
+    <div class="editor-view" id="editorView">
+      <div class="editor-header">
+        <div class="category-pill auto" id="categoryPill" title="Click to change category">
+          <span class="dot" id="pillDot"></span>
+          <span id="pillName">Inbox</span>
+          <span class="confidence" id="pillConf"></span>
+        </div>
+        <div style="flex:1"></div>
+        <div class="live-dot" title="Live categorization"></div>
+        <span style="font-size:0.75rem;color:var(--text-muted)">Live</span>
+      </div>
+
+      <input class="title-input" id="titleInput" placeholder="Note title..." maxlength="120" />
+      <div class="hint" id="hintText">Start writing — category updates automatically</div>
+      <div class="content-area">
+        <textarea class="content-input" id="contentInput" placeholder="Write anything... ideas, tasks, meeting notes, grocery lists, random thoughts.&#10;&#10;The app will figure out the category for you."></textarea>
+      </div>
+
+      <div class="editor-footer">
+        <span id="wordCount">0 words</span>
+        <span id="saveStatus"></span>
+        <div class="actions">
+          <button class="btn btn-ghost" id="deleteBtn">Delete</button>
+          <button class="btn btn-primary" id="saveBtn">Save</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Category modal -->
+  <div class="modal-overlay" id="catModal">
+    <div class="modal">
+      <h3>Choose category</h3>
+      <div class="modal-cats" id="modalCats"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+        <button class="btn btn-primary" id="modalApply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─── Categories & Keyword Engine ───────────────────────────────────────
+    const DEFAULT_CATEGORIES = [
+      { id: 'inbox', name: 'Inbox', color: '#94a3b8', keywords: [] },
+      { id: 'work', name: 'Work', color: '#38bdf8', keywords: [
+        'meeting','deadline','project','client','boss','email','report','presentation',
+        'team','office','salary','promotion','colleague','slack','jira','standup',
+        'sprint','budget','quarterly','kpi','okr','manager','interview','resume',
+        'proposal','contract','invoice','agenda','minutes','zoom','teams','call'
+      ]},
+      { id: 'personal', name: 'Personal', color: '#a78bfa', keywords: [
+        'family','friend','birthday','weekend','home','mom','dad','wife','husband',
+        'kids','relationship','love','date','party','vacation','travel','hobby',
+        'feel','feeling','diary','journal','today i','i feel','my life'
+      ]},
+      { id: 'ideas', name: 'Ideas', color: '#f472b6', keywords: [
+        'idea','brainstorm','what if','concept','innovation','startup','app idea',
+        'maybe','could','potential','feature','product','vision','inspiration',
+        'thought','imagine','prototype','mvp','business idea'
+      ]},
+      { id: 'tasks', name: 'Tasks', color: '#4ade80', keywords: [
+        'todo','to-do','to do','task','need to','must','should','buy','call',
+        'remind','reminder','deadline','finish','complete','checklist','list:',
+        'action','follow up','follow-up','errand','pick up','schedule'
+      ]},
+      { id: 'learning', name: 'Learning', color: '#fbbf24', keywords: [
+        'learn','study','course','book','read','tutorial','lesson','chapter',
+        'notes from','lecture','exam','quiz','practice','skill','coursework',
+        'homework','research','article','paper','documentation','how to'
+      ]},
+      { id: 'health', name: 'Health', color: '#34d399', keywords: [
+        'workout','gym','run','exercise','diet','calories','sleep','doctor',
+        'medicine','symptom','pain','yoga','meditation','mental health','therapy',
+        'weight','protein','steps','fitness','water','hydration'
+      ]},
+      { id: 'finance', name: 'Finance', color: '#fb923c', keywords: [
+        'money','budget','expense','salary','invest','stock','crypto','bank',
+        'payment','bill','tax','savings','loan','debt','income','spend','cost',
+        'price','subscription','invoice','receipt','transfer'
+      ]}
+    ];
+
+    // ─── State ─────────────────────────────────────────────────────────────
+    let categories = JSON.parse(localStorage.getItem('an_cats') || 'null') || DEFAULT_CATEGORIES;
+    let notes = JSON.parse(localStorage.getItem('an_notes') || '[]');
+    let currentNoteId = null;
+    let currentFilter = 'all';
+    let selectedModalCat = null;
+    let autoCategory = true; // whether the current note is still auto-categorizing
+
+    // ─── Helpers ───────────────────────────────────────────────────────────
+    function save() {
+      localStorage.setItem('an_cats', JSON.stringify(categories));
+      localStorage.setItem('an_notes', JSON.stringify(notes));
+    }
+
+    function uid() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    function tokenize(text) {
+      return text.toLowerCase()
+        .replace(/[^\w\s'-]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 1);
+    }
+
+    function scoreCategory(text, cat) {
+      if (!cat.keywords.length) return 0;
+      const tokens = tokenize(text);
+      const full = text.toLowerCase();
+      let score = 0;
+      for (const kw of cat.keywords) {
+        if (kw.includes(' ')) {
+          if (full.includes(kw)) score += 3;
+        } else {
+          const count = tokens.filter(t => t === kw || t.startsWith(kw)).length;
+          score += count * 2;
+        }
+      }
+      // Boost for very short task-like notes
+      if (cat.id === 'tasks' && (full.includes('todo') || full.match(/^\s*[-*•]\s/m))) score += 4;
+      return score;
+    }
+
+    function categorize(text) {
+      if (!text.trim()) return { id: 'inbox', name: 'Inbox', color: '#94a3b8', confidence: 0 };
+
+      let best = null;
+      let bestScore = 0;
+      for (const cat of categories) {
+        if (cat.id === 'inbox') continue;
+        const s = scoreCategory(text, cat);
+        if (s > bestScore) {
+          bestScore = s;
+          best = cat;
+        }
+      }
+
+      if (!best || bestScore < 2) {
+        return { id: 'inbox', name: 'Inbox', color: '#94a3b8', confidence: 0 };
+      }
+
+      // Simple confidence: scale score
+      const conf = Math.min(95, Math.round(30 + bestScore * 8));
+      return { ...best, confidence: conf };
+    }
+
+    function formatDate(ts) {
+      const d = new Date(ts);
+      const now = new Date();
+      const diff = (now - d) / 1000;
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    function wordCount(text) {
+      return text.trim() ? text.trim().split(/\s+/).length : 0;
+    }
+
+    // ─── Render ────────────────────────────────────────────────────────────
+    function renderCategories() {
+      const list = document.getElementById('categoriesList');
+      const counts = { all: notes.length };
+      categories.forEach(c => counts[c.id] = 0);
+      notes.forEach(n => {
+        if (counts[n.category] !== undefined) counts[n.category]++;
+        else counts.inbox = (counts.inbox || 0) + 1;
+      });
+
+      let html = `
+        <div class="cat-item ${currentFilter === 'all' ? 'active' : ''}" data-id="all">
+          <span class="dot" style="background:#e2e8f0"></span>
+          All Notes
+          <span class="count">${counts.all}</span>
+        </div>`;
+
+      categories.forEach(c => {
+        html += `
+          <div class="cat-item ${currentFilter === c.id ? 'active' : ''}" data-id="${c.id}">
+            <span class="dot" style="background:${c.color}"></span>
+            ${c.name}
+            <span class="count">${counts[c.id] || 0}</span>
+          </div>`;
+      });
+      list.innerHTML = html;
+
+      list.querySelectorAll('.cat-item').forEach(el => {
+        el.onclick = () => {
+          currentFilter = el.dataset.id;
+          renderCategories();
+          renderNotesList();
+          showList();
+          document.getElementById('topbarTitle').textContent =
+            currentFilter === 'all' ? 'All Notes' :
+            categories.find(c => c.id === currentFilter)?.name || 'Notes';
+        };
+      });
+    }
+
+    function renderNotesList() {
+      const container = document.getElementById('notesList');
+      const q = document.getElementById('searchInput').value.toLowerCase().trim();
+
+      let filtered = notes;
+      if (currentFilter !== 'all') {
+        filtered = filtered.filter(n => n.category === currentFilter);
+      }
+      if (q) {
+        filtered = filtered.filter(n =>
+          (n.title + ' ' + n.content).toLowerCase().includes(q)
+        );
+      }
+
+      // newest first
+      filtered = [...filtered].sort((a, b) => b.updated - a.updated);
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="empty">
+            <h3>${q ? 'No matching notes' : 'No notes yet'}</h3>
+            <p>${q ? 'Try a different search.' : 'Click “New Note” and just start writing. Categories appear automatically.'}</p>
+            ${!q ? '<button class="btn btn-primary" onclick="document.getElementById(\'newNoteBtn\').click()">Create first note</button>' : ''}
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(n => {
+        const cat = categories.find(c => c.id === n.category) || categories[0];
+        return `
+          <div class="note-card" data-id="${n.id}">
+            <div class="card-title">${escapeHtml(n.title || 'Untitled')}</div>
+            <div class="card-preview">${escapeHtml(n.content.slice(0, 160))}</div>
+            <div class="card-meta">
+              <span class="badge" style="background:${cat.color}22;color:${cat.color}">
+                <span style="width:6px;height:6px;border-radius:50%;background:${cat.color}"></span>
+                ${cat.name}
+              </span>
+              <span>${formatDate(n.updated)}</span>
+            </div>
+          </div>`;
+      }).join('');
+
+      container.querySelectorAll('.note-card').forEach(card => {
+        card.onclick = () => openNote(card.dataset.id);
+      });
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function updateCategoryPill(result, isAuto = true) {
+      const pill = document.getElementById('categoryPill');
+      const name = document.getElementById('pillName');
+      const conf = document.getElementById('pillConf');
+      const dot = document.getElementById('pillDot');
+
+      name.textContent = result.name;
+      conf.textContent = result.confidence > 0 ? `${result.confidence}%` : '';
+      dot.style.background = result.color;
+      pill.style.background = result.color + '22';
+      pill.style.color = result.color;
+      pill.style.borderColor = result.color + '55';
+
+      if (isAuto) pill.classList.add('auto');
+      else pill.classList.remove('auto');
+    }
+
+    function liveCategorize() {
+      if (!autoCategory) return;
+      const title = document.getElementById('titleInput').value;
+      const content = document.getElementById('contentInput').value;
+      const text = title + ' ' + content;
+      const result = categorize(text);
+      updateCategoryPill(result, true);
+    }
+
+    // ─── Note CRUD ─────────────────────────────────────────────────────────
+    function showList() {
+      document.getElementById('notesList').style.display = 'grid';
+      document.getElementById('editorView').classList.remove('active');
+      document.getElementById('editorToggle').style.display = 'none';
+      currentNoteId = null;
+    }
+
+    function showEditor() {
+      document.getElementById('notesList').style.display = 'none';
+      document.getElementById('editorView').classList.add('active');
+      document.getElementById('editorToggle').style.display = 'block';
+      document.getElementById('editorToggle').classList.add('active');
+      document.querySelector('.view-toggle button[data-view="list"]').classList.remove('active');
+    }
+
+    function openNote(id) {
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+      currentNoteId = id;
+      autoCategory = false; // respect saved category unless user changes text a lot
+
+      document.getElementById('titleInput').value = note.title || '';
+      document.getElementById('contentInput').value = note.content || '';
+      document.getElementById('wordCount').textContent = wordCount(note.content) + ' words';
+      document.getElementById('saveStatus').textContent = 'Last saved ' + formatDate(note.updated);
+
+      const cat = categories.find(c => c.id === note.category) || categories[0];
+      updateCategoryPill({ ...cat, confidence: 0 }, false);
+
+      showEditor();
+      document.getElementById('titleInput').focus();
+    }
+
+    function createNewNote() {
+      currentNoteId = null;
+      autoCategory = true;
+      document.getElementById('titleInput').value = '';
+      document.getElementById('contentInput').value = '';
+      document.getElementById('wordCount').textContent = '0 words';
+      document.getElementById('saveStatus').textContent = '';
+      updateCategoryPill({ id: 'inbox', name: 'Inbox', color: '#94a3b8', confidence: 0 }, true);
+      showEditor();
+      document.getElementById('titleInput').focus();
+      closeSidebar();
+    }
+
+    function saveNote() {
+      const title = document.getElementById('titleInput').value.trim();
+      const content = document.getElementById('contentInput').value.trim();
+      if (!title && !content) {
+        alert('Write something first.');
+        return;
+      }
+
+      const pillName = document.getElementById('pillName').textContent;
+      const cat = categories.find(c => c.name === pillName) || categories[0];
+
+      if (currentNoteId) {
+        const note = notes.find(n => n.id === currentNoteId);
+        note.title = title || 'Untitled';
+        note.content = content;
+        note.category = cat.id;
+        note.updated = Date.now();
+      } else {
+        const note = {
+          id: uid(),
+          title: title || 'Untitled',
+          content,
+          category: cat.id,
+          created: Date.now(),
+          updated: Date.now()
+        };
+        notes.push(note);
+        currentNoteId = note.id;
+      }
+      save();
+      document.getElementById('saveStatus').textContent = 'Saved just now';
+      renderCategories();
+      // stay in editor
+    }
+
+    function deleteNote() {
+      if (!currentNoteId) {
+        showList();
+        return;
+      }
+      if (!confirm('Delete this note?')) return;
+      notes = notes.filter(n => n.id !== currentNoteId);
+      save();
+      renderCategories();
+      showList();
+      renderNotesList();
+    }
+
+    // ─── Category modal ────────────────────────────────────────────────────
+    function openCatModal() {
+      selectedModalCat = document.getElementById('pillName').textContent;
+      const container = document.getElementById('modalCats');
+      container.innerHTML = categories.map(c => `
+        <button data-name="${c.name}" style="border-color:${c.color}55;color:${c.color}"
+          class="${c.name === selectedModalCat ? 'selected' : ''}">
+          ${c.name}
+        </button>`).join('');
+
+      container.querySelectorAll('button').forEach(btn => {
+        btn.onclick = () => {
+          selectedModalCat = btn.dataset.name;
+          container.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+        };
+      });
+      document.getElementById('catModal').classList.add('open');
+    }
+
+    function applyCatModal() {
+      const cat = categories.find(c => c.name === selectedModalCat);
+      if (cat) {
+        autoCategory = false;
+        updateCategoryPill({ ...cat, confidence: 0 }, false);
+      }
+      document.getElementById('catModal').classList.remove('open');
+    }
+
+    // ─── Add category ──────────────────────────────────────────────────────
+    function addCategory() {
+      const name = prompt('New category name:');
+      if (!name || !name.trim()) return;
+      const id = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now().toString(36).slice(-3);
+      const colors = ['#38bdf8','#a78bfa','#f472b6','#4ade80','#fbbf24','#34d399','#fb923c','#f87171','#c084fc'];
+      const color = colors[categories.length % colors.length];
+      categories.push({ id, name: name.trim(), color, keywords: [] });
+      save();
+      renderCategories();
+    }
+
+    // ─── Mobile sidebar ────────────────────────────────────────────────────
+    function openSidebar() {
+      document.getElementById('sidebar').classList.add('open');
+      document.getElementById('overlay').classList.add('show');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('overlay').classList.remove('show');
+    }
+
+    // ─── Event listeners ───────────────────────────────────────────────────
+    document.getElementById('newNoteBtn').onclick = createNewNote;
+    document.getElementById('saveBtn').onclick = saveNote;
+    document.getElementById('deleteBtn').onclick = deleteNote;
+    document.getElementById('categoryPill').onclick = openCatModal;
+    document.getElementById('modalCancel').onclick = () => document.getElementById('catModal').classList.remove('open');
+    document.getElementById('modalApply').onclick = applyCatModal;
+    document.getElementById('addCatBtn').onclick = addCategory;
+    document.getElementById('menuBtn').onclick = openSidebar;
+    document.getElementById('overlay').onclick = closeSidebar;
+
+    document.getElementById('searchInput').oninput = () => {
+      renderNotesList();
+    };
+
+    // Live categorization + word count
+    let debounce;
+    function onInput() {
+      const content = document.getElementById('contentInput').value;
+      document.getElementById('wordCount').textContent = wordCount(content) + ' words';
+      clearTimeout(debounce);
+      debounce = setTimeout(liveCategorize, 180);
+    }
+    document.getElementById('titleInput').oninput = onInput;
+    document.getElementById('contentInput').oninput = onInput;
+
+    // View toggle
+    document.querySelectorAll('.view-toggle button').forEach(btn => {
+      btn.onclick = () => {
+        if (btn.dataset.view === 'list') {
+          showList();
+          renderNotesList();
+          document.querySelector('.view-toggle button[data-view="list"]').classList.add('active');
+          document.getElementById('editorToggle').classList.remove('active');
+        }
+      };
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        if (document.getElementById('editorView').classList.contains('active')) saveNote();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        createNewNote();
+      }
+    });
+
+    // Service worker for PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    // Init
+    renderCategories();
+    renderNotesList();
+  </script>
+</body>
+</html>
